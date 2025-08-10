@@ -213,11 +213,9 @@ interface OwnerProfileUpdateData {
 const isProduction = process.env.NODE_ENV === 'production';
 const isCordova = typeof window !== 'undefined' && (window as any).cordova;
 
-const API_URL = isProduction
-  ? 'https://demohavenn.onrender.com/api'
-  : isCordova
-    ? 'http://localhost:3000/api'  // Mobile app in development connects to local backend
-    : 'http://localhost:3000/api';  // Web app in development connects to local backend
+const API_URL = isCordova
+  ? 'https://demohavenn.onrender.com/api'  // If it's a Cordova app, ALWAYS use the live server.
+  : 'http://localhost:3000/api';          // Otherwise, for PC development, use the local server.
 
 const apiClient = axios.create({
   baseURL: API_URL,
