@@ -1,298 +1,130 @@
-// routes/ownerAuth.js
-// Owner Authentication Routes for Multi-tenant Library System
-const express = require('express');
-const bcrypt = require('bcrypt');
+// ownerAuth.js
+const express = require("express");
+const router = express.Router();
+const { Pool } = require("pg");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const createOwnerAuthRouter = (pool) => {
-  const router = express.Router();
+const mainPool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT || "5432"),
+  ssl: { rejectUnauthorized: false }
+});
 
-  // Helper to detect DB auth/SCRAM errors
-  const isDbAuthError = (err) => {
-    if (!err || !err.message) return false;
-    const msg = err.message.toLowerCase();
-    return msg.includes('sasl') || msg.includes('scram') || msg.includes('server signature') || msg.includes('authentication failed') || msg.includes('28p01');
-  };
+const JWT_SECRET = process.env.SESSION_SECRET || "secret";
 
-  // Owner Registration
-  router.post('/register', async (req, res) => {
-    try {
-      const { 
-        ownerName, 
-        ownerEmail, 
-        ownerPhone, 
-        libraryName, 
-        password, 
-        confirmPassword,
-        libraryCode 
-      } = req.body;
+// Utility: create a tenant pool safely
+function createTenantPool({ user, host, database, password }) {
+  const encodedPassword = encodeURIComponent(password);
+  return new Pool({
+    connectionString: `postgresql://${user}:${encodedPassword}@${host}/${database}`,
+    ssl: { rejectUnauthorized: false }
+  });
+}
 
-      // Validation
-      if (!ownerName || !ownerEmail || !ownerPhone || !libraryName || !password || !confirmPassword) {
-        return res.status(400).json({ message: 'All fields are required' });
-      }
+// ================= REGISTER =================
+router.post("/register", async (req, res) => {
+  const { name, code, email, password } = req.body;
 
-      if (password !== confirmPassword) {
-        return res.status(400).json({ message: 'Passwords do not match' });
-      }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-      if (password.length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(ownerEmail)) {
-        return res.status(400).json({ message: 'Invalid email format' });
-      }
-
-      // Phone validation
-      const phoneRegex = /^[0-9]{10}$/;
-      if (!phoneRegex.test(ownerPhone)) {
-        return res.status(400).json({ message: 'Phone number must be 10 digits' });
-      }
-
-      // Check if phone already exists
-      const phoneCheck = await pool.query(
-        'SELECT id FROM libraries WHERE owner_phone = $1',
-        [ownerPhone]
-      );
-
-      if (phoneCheck.rows.length > 0) {
-        return res.status(400).json({ message: 'Phone number already registered' });
-      }
-
-      // Generate or validate library code
-      let finalLibraryCode;
-      if (libraryCode) {
-        // Check if provided library code is available
-        const codeCheck = await pool.query(
-          'SELECT id FROM libraries WHERE library_code = $1',
-          [libraryCode.toUpperCase()]
-        );
-
-        if (codeCheck.rows.length > 0) {
-          return res.status(400).json({ message: 'Library code already taken' });
-        }
-
-        // Validate library code format (alphanumeric, 3-20 characters)
-        const codeRegex = /^[A-Z0-9]{3,20}$/;
-        if (!codeRegex.test(libraryCode.toUpperCase())) {
-          return res.status(400).json({ 
-            message: 'Library code must be 3-20 characters long and contain only letters and numbers' 
-          });
-        }
-
-        finalLibraryCode = libraryCode.toUpperCase();
-      } else {
-        // Generate unique library code
-        const codeResult = await pool.query('SELECT generate_library_code() as code');
-        finalLibraryCode = codeResult.rows[0].code;
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Set trial period dates
-      const subscriptionStartDate = new Date();
-      const subscriptionEndDate = new Date();
-      subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 7);
-
-      // Insert new library owner with subscription fields
-      const result = await pool.query(
-        `INSERT INTO libraries (library_code, library_name, owner_name, owner_email, owner_phone, password, subscription_plan, subscription_start_date, subscription_end_date, is_trial, is_subscription_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING id, library_code, library_name, owner_name, owner_email, created_at, subscription_plan, subscription_start_date, subscription_end_date, is_trial, is_subscription_active`,
-        [finalLibraryCode, libraryName, ownerName, ownerEmail, ownerPhone, hashedPassword, 'free_trial', subscriptionStartDate, subscriptionEndDate, true, true]
-      );
-
-      const newLibrary = result.rows[0];
-
-      console.log(`[OWNER_AUTH] New library registered: ${newLibrary.library_name} (${newLibrary.library_code})`);
-
-      res.status(201).json({
-        message: 'Library registered successfully',
-        library: {
-          id: newLibrary.id,
-          libraryCode: newLibrary.library_code,
-          libraryName: newLibrary.library_name,
-          ownerName: newLibrary.owner_name,
-          ownerEmail: newLibrary.owner_email,
-          createdAt: newLibrary.created_at
-        }
-      });
-
-    } catch (error) {
-      console.error('[OWNER_AUTH] Registration error:', error);
-      // If it's a DB auth error (SCRAM etc), return actionable message
-      if (isDbAuthError(error)) {
-        return res.status(500).json({
-          message: 'Database authentication failed. Check DB credentials and SSL settings in environment variables (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT). If you used DATABASE_URL, ensure it is correct or removed.',
-          error: error.message
-        });
-      }
-      res.status(500).json({ message: 'Server error during registration', error: error.message });
+    const checkCode = await mainPool.query(
+      "SELECT * FROM owners WHERE code = $1",
+      [code]
+    );
+    if (checkCode.rows.length > 0) {
+      return res.status(400).json({ message: "Library code already exists" });
     }
-  });
 
-  // Owner Login
-  router.post('/login', async (req, res) => {
-    try {
-      const { phone, password } = req.body;
+    const newOwner = await mainPool.query(
+      "INSERT INTO owners (name, code, email, password) VALUES ($1, $2, $3, $4) RETURNING *",
+      [name, code, email, hashedPassword]
+    );
 
-      if (!phone || !password) {
-        return res.status(400).json({ message: 'Phone number and password are required' });
-      }
+    console.log("[OWNER_AUTH] New library registered:", name, `(${code})`);
+    res.status(201).json({ message: "Registration successful", owner: newOwner.rows[0] });
 
-      // Find library by owner phone
-      const result = await pool.query(
-        'SELECT id, library_code, library_name, owner_name, owner_email, password, status FROM libraries WHERE owner_phone = $1',
-        [phone]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      const library = result.rows[0];
-
-      // Check if library is active
-      if (library.status !== 'active') {
-        return res.status(401).json({ message: 'Library account is suspended. Please contact support.' });
-      }
-
-      // Verify password
-      const isPasswordValid = await bcrypt.compare(password, library.password);
-      if (!isPasswordValid) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      // Create session
-      req.session.owner = {
-        id: library.id,
-        libraryCode: library.library_code,
-        libraryName: library.library_name,
-        ownerName: library.owner_name,
-        ownerEmail: library.owner_email,
-        role: 'owner'
-      };
-
-      console.log(`[OWNER_AUTH] Owner ${library.owner_name} logged in for library ${library.library_code}`);
-
-      res.json({
-        message: 'Login successful',
-        owner: {
-          id: library.id,
-          libraryCode: library.library_code,
-          libraryName: library.library_name,
-          ownerName: library.owner_name,
-          ownerEmail: library.owner_email,
-          role: 'owner'
-        }
-      });
-
-    } catch (error) {
-      console.error('[OWNER_AUTH] Login error:', error);
-      if (isDbAuthError(error)) {
-        return res.status(500).json({
-          message: 'Database authentication failed. Check DB credentials and SSL settings in environment variables (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT).',
-          error: error.message
-        });
-      }
-      res.status(500).json({ message: 'Server error during login', error: error.message });
-    }
-  });
-
-  // Owner Logout
-  router.post('/logout', (req, res) => {
-    const ownerName = req.session?.owner?.ownerName || 'Unknown';
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('[OWNER_AUTH] Logout error for owner:', ownerName, err);
-        return res.status(500).json({ message: 'Could not log out, please try again.' });
-      }
-      res.clearCookie('connect.sid');
-      console.log(`[OWNER_AUTH] Owner ${ownerName} logged out successfully.`);
-      res.json({ message: 'Logout successful' });
-    });
-  });
-
-  // Check Owner Authentication Status
-  router.get('/status', (req, res) => {
-    try {
-      if (req.session && req.session.owner) {
-        return res.json({
-          isAuthenticated: true,
-          owner: req.session.owner
-        });
-      }
-      return res.json({ isAuthenticated: false, owner: null });
-    } catch (error) {
-      console.error('[OWNER_AUTH] Error in /status:', error);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-  });
-
-  // Check Library Code Availability
-  router.get('/check-code/:code', async (req, res) => {
-    try {
-      const { code } = req.params;
-      
-      if (!code || code.length < 3) {
-        return res.status(400).json({ message: 'Invalid library code format' });
-      }
-
-      const result = await pool.query(
-        'SELECT id FROM libraries WHERE library_code = $1',
-        [code.toUpperCase()]
-      );
-
-      res.json({
-        available: result.rows.length === 0,
-        code: code.toUpperCase()
-      });
-
-    } catch (error) {
-      console.error('[OWNER_AUTH] Error checking library code:', error);
-      if (isDbAuthError(error)) {
-        return res.status(500).json({
-          message: 'Database authentication failed. Check DB credentials and SSL settings.',
-          error: error.message
-        });
-      }
-      res.status(500).json({ message: 'Server error', error: error.message });
-    }
-  });
-
-  return router;
-};
-
-// Middleware to authenticate owner
-const authenticateOwner = (req, res, next) => {
-  if (req.session && req.session.owner && req.session.owner.id) {
-    return next();
+  } catch (err) {
+    console.error("[OWNER_AUTH] Registration error:", err);
+    res.status(500).json({ message: "Server error during registration" });
   }
-  console.warn(
-    "[OWNER_AUTH] Owner authentication failed for path:",
-    req.path,
-    "Session owner:", req.session.owner,
-    "Session user:", req.session.user
-  );
-  return res
-    .status(401)
-    .json({ message: "Unauthorized - Please log in as a library owner" });
-};
+});
 
-// Middleware to ensure data isolation (owner can only access their own data)
-const ensureOwnerDataIsolation = (req, res, next) => {
-  if (!req.session || !req.session.owner) {
-    return res.status(401).json({ message: 'Unauthorized - Please log in as library owner' });
+// ================= LOGIN =================
+router.post("/login", async (req, res) => {
+  const { code, email, password } = req.body;
+
+  try {
+    // Get library info from main DB
+    const ownerRes = await mainPool.query(
+      "SELECT * FROM owners WHERE code = $1 AND email = $2",
+      [code, email]
+    );
+
+    if (ownerRes.rows.length === 0) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const owner = ownerRes.rows[0];
+    const isMatch = await bcrypt.compare(password, owner.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // If tenant DB connection is needed:
+    try {
+      const tenantPool = createTenantPool({
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD
+      });
+      await tenantPool.query("SELECT 1"); // Test connection
+      tenantPool.end();
+    } catch (dbErr) {
+      console.error("[OWNER_AUTH] Tenant DB connection error:", dbErr);
+      return res.status(500).json({ message: "Tenant DB connection failed" });
+    }
+
+    const token = jwt.sign(
+      { ownerId: owner.id, code: owner.code },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({ token, owner });
+
+  } catch (err) {
+    console.error("[OWNER_AUTH] Login error:", err);
+    res.status(500).json({ message: "Server error during login" });
   }
-  req.libraryId = req.session.owner.id;
-  next();
-};
+});
 
-module.exports = {
-  createOwnerAuthRouter,
-  authenticateOwner,
-  ensureOwnerDataIsolation
-};
+// ================= CHECK LIBRARY CODE =================
+router.post("/check-library-code", async (req, res) => {
+  const { code } = req.body;
+
+  try {
+    const result = await mainPool.query(
+      "SELECT * FROM owners WHERE code = $1",
+      [code]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ exists: false });
+    }
+
+    res.json({ exists: true });
+
+  } catch (err) {
+    console.error("[OWNER_AUTH] Error checking library code:", err);
+    res.status(500).json({ message: "Error checking library code" });
+  }
+});
+
+module.exports = router;
