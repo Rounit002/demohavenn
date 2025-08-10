@@ -210,13 +210,9 @@ interface OwnerProfileUpdateData {
 }
 
 // Determine API URL based on environment and platform
-
-const isProductionEnvironment = window.location.hostname !== 'localhost';
-
-const API_URL = isProductionEnvironment
-  ? 'https://demohavenn.onrender.com/api' // Used for Render web app AND Cordova app
-  : 'http://localhost:3000/api';        // Used ONLY for local PC development
-
+// HARDCODED for production - no environment detection to avoid Cordova localhost issues
+const API_URL = 'https://demohavenn.onrender.com/api';
+console.log('🔗 API_URL configured as:', API_URL); // Debug log to verify in mobile app
 const apiClient = axios.create({
   baseURL: API_URL,
   withCredentials: true,

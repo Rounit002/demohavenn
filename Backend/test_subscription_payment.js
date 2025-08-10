@@ -1,5 +1,8 @@
 const axios = require('axios');
 
+// Use environment variable or default to production URL
+const API_BASE_URL = process.env.API_BASE_URL || 'https://demohavenn.onrender.com/api';
+
 async function testSubscriptionPayment() {
   try {
     console.log('Testing subscription payment endpoint...');
@@ -7,7 +10,7 @@ async function testSubscriptionPayment() {
     // Test the create-order endpoint
     console.log('\\n1. Testing create-order endpoint:');
     try {
-      const response = await axios.post('http://localhost:3000/api/subscriptions/create-order', {
+      const response = await axios.post(`${API_BASE_URL}/subscriptions/create-order`, {
         planId: '1_month',
         amount: 10000 // 100 INR in paise
       }, {

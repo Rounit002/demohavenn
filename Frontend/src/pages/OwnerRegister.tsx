@@ -51,7 +51,7 @@ const OwnerRegister: React.FC = () => {
 
     setCheckingCode(true);
     try {
-      const response = await fetch(`/api/owner-auth/check-code/${formData.libraryCode}`);
+      const response = await fetch(`https://demohavenn.onrender.com/api/owner-auth/check-code/${formData.libraryCode}`);
       const data = await response.json();
       setCodeAvailable(data.available);
     } catch (error) {
@@ -95,7 +95,7 @@ const OwnerRegister: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/owner-auth/register', {
+      const response = await fetch('https://demohavenn.onrender.com/api/owner-auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

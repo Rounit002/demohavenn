@@ -57,9 +57,8 @@ const RegistrationStatus: React.FC = () => {
       setError(null);
       setSearched(true);
 
-      const API_BASE_URL = process.env.NODE_ENV === 'production' 
-        ? 'https://maasaraswatilibrary.onrender.com/api' 
-        : 'http://localhost:3000/api';
+      const API_BASE_URL = 'https://demohavenn.onrender.com/api';
+
       const response = await fetch(`${API_BASE_URL}/public-registration/library/${libraryCode}/status/${phone}`);
       
       if (!response.ok) {

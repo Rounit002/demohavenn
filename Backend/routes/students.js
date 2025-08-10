@@ -599,7 +599,7 @@ module.exports = (pool) => {
             console.log(`[STUDENTS]    - Library Code: ${libraryCode}`);
             console.log(`[STUDENTS]    - Phone: ${phone}`);
             console.log(`[STUDENTS]    - Password: ${phone}`);
-            console.log(`[STUDENTS] 🌐 Login URL: http://localhost:8082/student-login`);
+            console.log(`[STUDENTS] 🌐 Login URL: Student login available via the application`);
           } else {
             console.log(`[STUDENTS] ⚠️  Login account already exists for phone: ${phone} in library ${libraryId}`);
           }

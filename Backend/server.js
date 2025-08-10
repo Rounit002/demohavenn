@@ -30,12 +30,12 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
-// CORS - include production domain
+// CORS - include production domain and Cordova origins
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:8080',
-  'file://',
-  'https://demohavenn.onrender.com'
+  'https://demohavenn.onrender.com',
+  'https://localhost', // Cordova WebView origin
+  'file://', // Cordova file:// protocol
+  ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:8080'] : [])
 ];
 
 app.use(cors({

@@ -113,9 +113,8 @@ const PublicRegistration: React.FC = () => {
   const fetchLibraryData = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL = process.env.NODE_ENV === 'production' 
-        ? 'https://maasaraswatilibrary.onrender.com/api' 
-        : 'http://localhost:3000/api';
+      const API_BASE_URL = 'https://demohavenn.onrender.com/api';
+
       const response = await fetch(`${API_BASE_URL}/public-registration/library/${libraryCode}`);
       
       if (!response.ok) {
@@ -153,9 +152,8 @@ const PublicRegistration: React.FC = () => {
       setSubmitting(true);
       setError(null);
 
-      const API_BASE_URL = process.env.NODE_ENV === 'production' 
-        ? 'https://maasaraswatilibrary.onrender.com/api' 
-        : 'http://localhost:3000/api';
+      const API_BASE_URL = 'https://demohavenn.onrender.com/api';
+
       const response = await fetch(`${API_BASE_URL}/public-registration/library/${libraryCode}/register`, {
         method: 'POST',
         headers: {

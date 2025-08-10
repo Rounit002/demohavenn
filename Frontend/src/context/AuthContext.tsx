@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       try {
         // Check owner authentication first
-        const ownerResponse = await fetch('/api/owner-auth/status', { credentials: 'include' });
+        const ownerResponse = await fetch('https://demohavenn.onrender.com/api/owner-auth/status', { credentials: 'include' });
         if (ownerResponse.ok) {
           const ownerData = await ownerResponse.json();
           if (ownerData.isAuthenticated && ownerData.owner) {
@@ -166,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Check if current user is an owner
       if (user && user.isOwner) {
         // Owner logout
-        await fetch('/api/owner-auth/logout', {
+        await fetch('https://demohavenn.onrender.com/api/owner-auth/logout', {
           method: 'POST',
           credentials: 'include'
         });
