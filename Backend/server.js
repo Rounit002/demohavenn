@@ -134,7 +134,7 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000, 
     httpOnly: false, // Allow JavaScript access for mobile apps
     secure: false, // Disable secure cookies for Cordova compatibility
-    sameSite: 'none' // Required for cross-origin requests in mobile apps
+    sameSite: 'lax' // Compatible with both web and mobile apps
   },
 }));
 
