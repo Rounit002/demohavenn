@@ -17,6 +17,7 @@ const { sendExpirationReminder } = require('./utils/email');
 
 const app = express();
 
+// Logger setup
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
@@ -25,11 +26,11 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: 'combined.log' })
   ]
 });
-
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
+// CORS - include production domain
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:8080',
@@ -39,6 +40,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
+    // If no origin (e.g. curl, mobile apps), allow it
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -49,26 +51,61 @@ app.use(cors({
   credentials: true
 }));
 
-
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
-  ssl: { rejectUnauthorized: false } // ✅ Needed for Render
-});
-
-
-pool.connect((err, client, release) => {
-  if (err) {
-    logger.error('Database connection error:', err.stack);
-  } else {
-    logger.info('Database connected successfully');
+// Build PG configuration (support DATABASE_URL or discrete DB_* vars)
+const buildPgConfig = () => {
+  // If you set DATABASE_URL, prefer it but still ensure SSL
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
+    return {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    };
   }
-  if (client) release();
-});
+  // Otherwise use discrete environment variables
+  return {
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: parseInt(process.env.DB_PORT || '5432'),
+    ssl: (process.env.DB_SSL === 'false') ? false : { rejectUnauthorized: false }
+  };
+};
 
+const pgConfig = buildPgConfig();
+const pool = new Pool(pgConfig);
+
+// Small helper to mask sensitive values for logs
+const mask = (s) => {
+  if (!s) return 'N/A';
+  if (s.length <= 6) return '***';
+  return s.slice(0, 3) + '***' + s.slice(-3);
+};
+
+// Test DB connection quickly on startup (non-fatal, but informative)
+(async () => {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('SELECT 1'); // simple test
+      logger.info('Postgres connection test succeeded', {
+        host: mask(process.env.DB_HOST),
+        user: mask(process.env.DB_USER),
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    // Do NOT log secrets. Provide actionable info.
+    logger.error('Postgres connection test FAILED. Check DB credentials and SSL settings.', {
+      message: err.message,
+      code: err.code,
+      hint: 'If you use Render or Supabase, ensure DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT are set in Render env and ssl is enabled.'
+    });
+    // keep server running so logs are visible, but DB queries will fail until config corrected
+  }
+})();
+
+// Middleware and basic app setup
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
@@ -113,6 +150,7 @@ const upload = multer({
   },
 });
 
+// Helper to require route factory safely
 const initializeRoute = (filePath, poolInstance) => {
   try {
     const routeFactory = require(filePath);
@@ -122,11 +160,12 @@ const initializeRoute = (filePath, poolInstance) => {
     }
     return routeFactory(poolInstance);
   } catch (e) {
-    logger.error(`FATAL: Failed to require or initialize route from ${filePath}: ${e.message} ${e.stack}`);
+    logger.error(`FATAL: Failed to require or initialize route from ${filePath}: ${e.message}`);
     process.exit(1);
   }
 };
 
+// Routes import/initialization
 const {
   createOwnerAuthRouter,
   authenticateOwner,
@@ -161,126 +200,38 @@ const admissionRequestsRoutes = initializeRoute('./routes/admissionRequests', po
 const authModule = require('./routes/auth');
 const authRoutes = authModule.authRouter(pool);
 
-// Multi-tenant routes (no authentication required for registration/login)
+// Mount routes
 app.use('/api/owner-auth', ownerAuthRoutes);
 app.use('/api/student-auth', studentAuthRoutes);
-app.use('/api/owner-dashboard',authenticateOwner,ensureOwnerDataIsolation,ownerDashboardRoutes);
+app.use('/api/owner-dashboard', authenticateOwner, ensureOwnerDataIsolation, ownerDashboardRoutes);
 
-// Public registration routes (no authentication required)
 app.use('/api/public-registration', publicRegistrationRoutes);
-
-// Admission requests management routes (requires authentication)
 app.use('/api/admission-requests', admissionRequestsRoutes);
-
-// Original authentication routes
 app.use('/api/auth', authRoutes);
-app.use(
-  '/api/users',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  userRoutes
-);
+
+app.use('/api/users', authenticateOwner, ensureOwnerDataIsolation, userRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/queries', queriesRoutes);
+app.use('/api/students', authenticateOwner, ensureOwnerDataIsolation, studentRoutes);
+app.use('/api/schedules', authenticateOwner, ensureOwnerDataIsolation, scheduleRoutes);
+app.use('/api/seats', authenticateOwner, ensureOwnerDataIsolation, seatsRoutes);
+app.use('/api/branches', authenticateOwner, ensureOwnerDataIsolation, branchesRoutes);
+app.use('/api/lockers', authenticateOwner, ensureOwnerDataIsolation, lockersRoutes);
 
-// ✅ FIX: Moved permission checks inside the route files for more granular control
-app.use(
-  '/api/students',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  studentRoutes
-);
-app.use(
-  '/api/schedules',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  scheduleRoutes
-);
-app.use(
-  '/api/seats',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  seatsRoutes
-);
-app.use(
-  '/api/branches',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  branchesRoutes
-);
-app.use(
-  '/api/lockers',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  lockersRoutes
-);
-
-// Subscription routes
 const { createSubscriptionRouter } = require('./routes/subscriptions');
 const subscriptionRoutes = createSubscriptionRouter(pool);
 app.use('/api/subscriptions', subscriptionRoutes);
 
-// Other routes that can keep their global permissions
-app.use(
-  '/api/transactions',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  transactionsRoutes
-);
-app.use(
-  '/api/collections',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  generalCollectionsRoutes
-);
-app.use(
-  '/api/expenses',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  expensesRoutes
-);
-app.use(
-  '/api/reports',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  reportsRoutes
-);
-app.use(
-  '/api/hostel/branches',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  hostelBranchesRoutes
-);
-app.use(
-  '/api/hostel/students',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  hostelStudentsRoutes
-);
-app.use(
-  '/api/hostel/collections',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  hostelCollectionRoutes
-);
-app.use(
-  '/api/products',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  productsRoutes
-);
-app.use(
-  '/api/settings',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  settingsRoutes
-);
-app.use(
-  '/api/announcements',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  announcementsRoutes
-);
+app.use('/api/transactions', authenticateOwner, ensureOwnerDataIsolation, transactionsRoutes);
+app.use('/api/collections', authenticateOwner, ensureOwnerDataIsolation, generalCollectionsRoutes);
+app.use('/api/expenses', authenticateOwner, ensureOwnerDataIsolation, expensesRoutes);
+app.use('/api/reports', authenticateOwner, ensureOwnerDataIsolation, reportsRoutes);
+app.use('/api/hostel/branches', authenticateOwner, ensureOwnerDataIsolation, hostelBranchesRoutes);
+app.use('/api/hostel/students', authenticateOwner, ensureOwnerDataIsolation, hostelStudentsRoutes);
+app.use('/api/hostel/collections', authenticateOwner, ensureOwnerDataIsolation, hostelCollectionRoutes);
+app.use('/api/products', authenticateOwner, ensureOwnerDataIsolation, productsRoutes);
+app.use('/api/settings', authenticateOwner, ensureOwnerDataIsolation, settingsRoutes);
+app.use('/api/announcements', authenticateOwner, ensureOwnerDataIsolation, announcementsRoutes);
 
 app.get('/api/test-email', async (req, res) => {
   try {
@@ -320,30 +271,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
 
-const PORT_NUM = process.env.PORT || 3000;
-
-// (async () => {
-//   try {
-//     await initializeSessionTable();
-//     await createDefaultAdmin();
-//     if (typeof setupCronJobs === 'function') {
-//         setupCronJobs(pool);
-//     } else {
-//         logger.warn('setupCronJobs is not a function, cron jobs not started.');
-//     }
-//     const server = app.listen(PORT_NUM, '0.0.0.0', () => {
-//       logger.info(`Server running on port ${PORT_NUM}`);
-//     });
-
-//     server.keepAliveTimeout = 65000;
-//     server.headersTimeout = 70000;
-
-//   } catch (err) {
-//     logger.error('Failed to start server:', err.stack);
-//     process.exit(1);
-//   }
-// })();
-
+// DB helper functions (unchanged logic)
 async function initializeSessionTable() {
   try {
     await pool.query(`
@@ -365,7 +293,9 @@ async function initializeSessionTable() {
     logger.info('Session table checked/initialized successfully');
   } catch (err) {
     logger.error('Error initializing session table:', err.stack);
+    // ignore expected duplicate/index errors (keeps startup resilient)
     if (err.code !== '42P07' && err.code !== '42710') {
+      // other errors will still be logged
     } else {
       logger.warn(`Session table or its constraints/indexes might already exist: ${err.message}`);
     }
@@ -399,39 +329,26 @@ async function createDefaultAdmin() {
     }
   } catch (err) {
     logger.error('Error creating default admin user:', err.stack);
-      if (err.code === '42P01') {
-        logger.warn('Users table does not exist yet (checked again). Default admin cannot be created.');
-    } else if (err.code !== '23505') {
+    if (err.code === '42P01') {
+      logger.warn('Users table does not exist yet (checked again). Default admin cannot be created.');
     } else {
-        logger.warn(`Admin user might already exist or other unique constraint violation during default admin creation: ${err.message}`);
+      // ignore unique violation log noise
     }
   }
 }
 
-// Initialize database tables and start server
-// async function startServer() {
-//   try {
-//     await initializeSessionTable();
-//     await createDefaultAdmin();
-//     setupCronJobs();
-    
-//     const PORT = process.env.PORT || 3000;
-//     app.listen(PORT, () => {
-//       logger.info(`Server running on port ${PORT}`);
-//       console.log(`Server running on port ${PORT}`);
-//     });
-//   } catch (error) {
-//     logger.error('Failed to start server:', error);
-//     process.exit(1);
-//   }
-// }
-
-// startServer();
+// Single server start; cron jobs started in same process
 (async () => {
   try {
     await initializeSessionTable();
     await createDefaultAdmin();
-    setupCronJobs(pool); // pass pool so cron jobs work
+
+    // start cron jobs with pool so cron queries work
+    if (typeof setupCronJobs === 'function') {
+      setupCronJobs(pool);
+    } else {
+      logger.warn('setupCronJobs is not a function, cron jobs not started.');
+    }
 
     const PORT = process.env.PORT || 3000;
     const server = app.listen(PORT, '0.0.0.0', () => {

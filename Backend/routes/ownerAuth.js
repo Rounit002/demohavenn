@@ -1,9 +1,17 @@
+// routes/ownerAuth.js
 // Owner Authentication Routes for Multi-tenant Library System
 const express = require('express');
 const bcrypt = require('bcrypt');
 
 const createOwnerAuthRouter = (pool) => {
   const router = express.Router();
+
+  // Helper to detect DB auth/SCRAM errors
+  const isDbAuthError = (err) => {
+    if (!err || !err.message) return false;
+    const msg = err.message.toLowerCase();
+    return msg.includes('sasl') || msg.includes('scram') || msg.includes('server signature') || msg.includes('authentication failed') || msg.includes('28p01');
+  };
 
   // Owner Registration
   router.post('/register', async (req, res) => {
@@ -115,6 +123,13 @@ const createOwnerAuthRouter = (pool) => {
 
     } catch (error) {
       console.error('[OWNER_AUTH] Registration error:', error);
+      // If it's a DB auth error (SCRAM etc), return actionable message
+      if (isDbAuthError(error)) {
+        return res.status(500).json({
+          message: 'Database authentication failed. Check DB credentials and SSL settings in environment variables (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT). If you used DATABASE_URL, ensure it is correct or removed.',
+          error: error.message
+        });
+      }
       res.status(500).json({ message: 'Server error during registration', error: error.message });
     }
   });
@@ -177,6 +192,12 @@ const createOwnerAuthRouter = (pool) => {
 
     } catch (error) {
       console.error('[OWNER_AUTH] Login error:', error);
+      if (isDbAuthError(error)) {
+        return res.status(500).json({
+          message: 'Database authentication failed. Check DB credentials and SSL settings in environment variables (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT).',
+          error: error.message
+        });
+      }
       res.status(500).json({ message: 'Server error during login', error: error.message });
     }
   });
@@ -232,6 +253,12 @@ const createOwnerAuthRouter = (pool) => {
 
     } catch (error) {
       console.error('[OWNER_AUTH] Error checking library code:', error);
+      if (isDbAuthError(error)) {
+        return res.status(500).json({
+          message: 'Database authentication failed. Check DB credentials and SSL settings.',
+          error: error.message
+        });
+      }
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });
@@ -244,18 +271,12 @@ const authenticateOwner = (req, res, next) => {
   if (req.session && req.session.owner && req.session.owner.id) {
     return next();
   }
-  
-  // This middleware should STRICTLY check for an owner session.
-  // If it's not present, it should fail immediately.
-  // Other authentication checks for different user types should be in separate middleware.
-  
   console.warn(
     "[OWNER_AUTH] Owner authentication failed for path:",
     req.path,
     "Session owner:", req.session.owner,
     "Session user:", req.session.user
   );
-  
   return res
     .status(401)
     .json({ message: "Unauthorized - Please log in as a library owner" });
@@ -266,8 +287,6 @@ const ensureOwnerDataIsolation = (req, res, next) => {
   if (!req.session || !req.session.owner) {
     return res.status(401).json({ message: 'Unauthorized - Please log in as library owner' });
   }
-  
-  // Add library_id to request for use in queries
   req.libraryId = req.session.owner.id;
   next();
 };

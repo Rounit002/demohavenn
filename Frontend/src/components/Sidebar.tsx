@@ -93,7 +93,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onBarcod
             <div className="flex items-center gap-2">
               <img src={logo} alt="Library Logo" className="h-10 w-10 rounded-full object-cover" />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-orange-400 text-transparent bg-clip-text">
-                MAA SARASWATI LIBRARY
+                HAVENN <br />
+                <p className="text-sm text-gray-500">Library into Heaven</p>
               </h1>
             </div>
           )}
