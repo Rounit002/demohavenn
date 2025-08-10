@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // If no admin/staff, check for student
-        const studentResponse = await fetch('/api/student-auth/status', { credentials: 'include' });
+        const studentResponse = await fetch('https://demohavenn.onrender.com/api/student-auth/status', { credentials: 'include' });
         if (studentResponse.ok) {
           const studentData = await studentResponse.json();
           if (studentData.isAuthenticated && studentData.student) {

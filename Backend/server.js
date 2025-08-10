@@ -130,7 +130,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your-very-secure-secret-key-please-change',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' },
+  cookie: { 
+    maxAge: 24 * 60 * 60 * 1000, 
+    httpOnly: true, 
+    // Allow cookies in Cordova mobile apps (https://localhost) while keeping security for web
+    secure: process.env.NODE_ENV === 'production' ? false : false, // Temporarily disable secure for mobile app testing
+    sameSite: 'lax' 
+  },
 }));
 
 cloudinary.config({

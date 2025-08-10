@@ -251,7 +251,7 @@ const StudentDashboard: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/student-auth/logout', { method: 'POST' });
+      await fetch('https://demohavenn.onrender.com/api/student-auth/logout', { method: 'POST' });
       navigate('/student-login');
     } catch (error) {
       console.error('Logout error:', error);

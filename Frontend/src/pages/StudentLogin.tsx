@@ -43,7 +43,7 @@ const StudentLogin: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/student-auth/login", {
+      const response = await fetch("https://demohavenn.onrender.com/api/student-auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

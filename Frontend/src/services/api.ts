@@ -213,9 +213,24 @@ interface OwnerProfileUpdateData {
 // HARDCODED for production - no environment detection to avoid Cordova localhost issues
 const API_URL = 'https://demohavenn.onrender.com/api';
 console.log('🔗 API_URL configured as:', API_URL); // Debug log to verify in mobile app
+console.log('🌍 Window location:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+console.log('🔧 User agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
+
 const apiClient = axios.create({
   baseURL: API_URL,
   withCredentials: true,
+});
+
+// Debug interceptor to log all outgoing requests
+apiClient.interceptors.request.use((config) => {
+  console.log('🚀 API Request Details:', {
+    url: config.url,
+    baseURL: config.baseURL,
+    fullURL: config.baseURL + config.url,
+    method: config.method,
+    headers: config.headers
+  });
+  return config;
 });
 
 const transformKeysToCamelCase = (obj: any): any => {
@@ -295,11 +310,13 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      console.warn('401 Unauthorized - Redirecting to login:', error.response?.data?.message);
-      window.location.href = '/login';
+      console.warn('401 Unauthorized - Authentication required:', error.response?.data?.message);
+      // Don't redirect in mobile app - let components handle auth state
+      // Mobile apps should handle 401 errors through proper auth context
     } else if (!error.response) {
       console.error('Network error - please check your connection:', error.message);
-      alert('Unable to connect to the server. Please check your network.');
+      // Don't show alert in mobile app - let components handle errors gracefully
+      console.error('Connection failed - this may be a network connectivity issue');
     }
     const errorData = error.response?.data || { message: error.message };
     console.error('API Error (Axios Interceptor - Response Error):', JSON.stringify(errorData, null, 2));
