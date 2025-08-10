@@ -30,12 +30,17 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
-// CORS - include production domain and Cordova origins
+// CORS - secure configuration for production and mobile apps
 const allowedOrigins = [
   'https://demohavenn.onrender.com',
-  'https://localhost', // Cordova WebView origin
   'file://', // Cordova file:// protocol
-  ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:8080'] : [])
+  'capacitor://localhost', // Capacitor apps
+  'ionic://localhost', // Ionic apps
+  ...(process.env.NODE_ENV !== 'production' ? [
+    'http://localhost:5173', 
+    'http://localhost:8080',
+    'https://localhost' // Only allow https://localhost in development
+  ] : [])
 ];
 
 app.use(cors({
