@@ -34,12 +34,12 @@ if (process.env.NODE_ENV !== 'production') {
 const allowedOrigins = [
   'https://demohavenn.onrender.com',
   'file://', // Cordova file:// protocol
+  'https://localhost', // Cordova WebView origin (needed for mobile app)
   'capacitor://localhost', // Capacitor apps
   'ionic://localhost', // Ionic apps
   ...(process.env.NODE_ENV !== 'production' ? [
     'http://localhost:5173', 
-    'http://localhost:8080',
-    'https://localhost' // Only allow https://localhost in development
+    'http://localhost:8080'
   ] : [])
 ];
 
