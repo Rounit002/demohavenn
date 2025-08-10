@@ -132,10 +132,9 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     maxAge: 24 * 60 * 60 * 1000, 
-    httpOnly: true, 
-    // Allow cookies in Cordova mobile apps (https://localhost) while keeping security for web
-    secure: process.env.NODE_ENV === 'production' ? false : false, // Temporarily disable secure for mobile app testing
-    sameSite: 'lax' 
+    httpOnly: false, // Allow JavaScript access for mobile apps
+    secure: false, // Disable secure cookies for Cordova compatibility
+    sameSite: 'none' // Required for cross-origin requests in mobile apps
   },
 }));
 
