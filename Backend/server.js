@@ -30,11 +30,25 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:8080',
+  'file://',
+  'https://demohavenn.onrender.com'
+];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:8080', 'file://'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
+
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -306,27 +320,27 @@ app.use((err, req, res, next) => {
 
 const PORT_NUM = process.env.PORT || 3000;
 
-(async () => {
-  try {
-    await initializeSessionTable();
-    await createDefaultAdmin();
-    if (typeof setupCronJobs === 'function') {
-        setupCronJobs(pool);
-    } else {
-        logger.warn('setupCronJobs is not a function, cron jobs not started.');
-    }
-    const server = app.listen(PORT_NUM, '0.0.0.0', () => {
-      logger.info(`Server running on port ${PORT_NUM}`);
-    });
+// (async () => {
+//   try {
+//     await initializeSessionTable();
+//     await createDefaultAdmin();
+//     if (typeof setupCronJobs === 'function') {
+//         setupCronJobs(pool);
+//     } else {
+//         logger.warn('setupCronJobs is not a function, cron jobs not started.');
+//     }
+//     const server = app.listen(PORT_NUM, '0.0.0.0', () => {
+//       logger.info(`Server running on port ${PORT_NUM}`);
+//     });
 
-    server.keepAliveTimeout = 65000;
-    server.headersTimeout = 70000;
+//     server.keepAliveTimeout = 65000;
+//     server.headersTimeout = 70000;
 
-  } catch (err) {
-    logger.error('Failed to start server:', err.stack);
-    process.exit(1);
-  }
-})();
+//   } catch (err) {
+//     logger.error('Failed to start server:', err.stack);
+//     process.exit(1);
+//   }
+// })();
 
 async function initializeSessionTable() {
   try {
@@ -393,21 +407,40 @@ async function createDefaultAdmin() {
 }
 
 // Initialize database tables and start server
-async function startServer() {
+// async function startServer() {
+//   try {
+//     await initializeSessionTable();
+//     await createDefaultAdmin();
+//     setupCronJobs();
+    
+//     const PORT = process.env.PORT || 3000;
+//     app.listen(PORT, () => {
+//       logger.info(`Server running on port ${PORT}`);
+//       console.log(`Server running on port ${PORT}`);
+//     });
+//   } catch (error) {
+//     logger.error('Failed to start server:', error);
+//     process.exit(1);
+//   }
+// }
+
+// startServer();
+(async () => {
   try {
     await initializeSessionTable();
     await createDefaultAdmin();
-    setupCronJobs();
-    
+    setupCronJobs(pool); // pass pool so cron jobs work
+
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on port ${PORT}`);
       console.log(`Server running on port ${PORT}`);
     });
-  } catch (error) {
-    logger.error('Failed to start server:', error);
+
+    server.keepAliveTimeout = 65000;
+    server.headersTimeout = 70000;
+  } catch (err) {
+    logger.error('Failed to start server:', err.stack);
     process.exit(1);
   }
-}
-
-startServer();
+})();

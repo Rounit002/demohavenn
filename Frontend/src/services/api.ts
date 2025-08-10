@@ -214,7 +214,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const isCordova = typeof window !== 'undefined' && (window as any).cordova;
 
 const API_URL = isProduction
-  ? 'https://maasaraswatilibrary.onrender.com/api'
+  ? 'https://demohavenn.onrender.com/api'
   : isCordova
     ? 'http://localhost:3000/api'  // Mobile app in development connects to local backend
     : 'http://localhost:3000/api';  // Web app in development connects to local backend
