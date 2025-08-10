@@ -1,0 +1,235 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { Camera, X, AlertCircle, RotateCw, Video, VideoOff } from 'lucide-react';
+
+interface BarcodeScannerProps {
+  onScanSuccess: (decodedText: string) => void;
+  onClose: () => void;
+  isOpen: boolean;
+}
+
+const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose, isOpen }) => {
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cameraId, setCameraId] = useState<string | null>(null);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const containerId = 'qr-reader' + Math.random().toString(36).substring(7);
+
+  // Get available cameras
+  const getCameras = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      setCameras(videoDevices);
+      return videoDevices;
+    } catch (err) {
+      console.error('Error getting cameras:', err);
+      setError('Could not access camera devices.');
+      return [];
+    }
+  };
+
+  // Start the scanner
+  const startScanner = async (cameraId?: string) => {
+    try {
+      setError(null);
+      setIsScanning(true);
+      
+      // Clear existing scanner if any
+      if (scannerRef.current) {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+
+      // Clear container
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = '';
+      }
+
+      // Create new scanner
+      const scanner = new Html5Qrcode(containerId);
+      scannerRef.current = scanner;
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      };
+
+      // Start scanning
+      await scanner.start(
+        cameraId || { facingMode: 'environment' },
+        config,
+        (decodedText) => {
+          console.log('Barcode scanned:', decodedText);
+          onScanSuccess(decodedText);
+        },
+        (error) => {
+          // Ignore expected errors
+          if (!error.message.includes('No QR code found')) {
+            console.warn('QR Code scan error:', error);
+          }
+        }
+      );
+
+      setIsCameraOn(true);
+      setIsScanning(false);
+    } catch (err: any) {
+      console.error('Scanner error:', err);
+      setError(err.message || 'Failed to start camera');
+      setIsScanning(false);
+      setIsCameraOn(false);
+    }
+  };
+
+  // Stop the scanner
+  const stopScanner = async () => {
+    try {
+      if (scannerRef.current) {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+      setIsCameraOn(false);
+    } catch (err) {
+      console.error('Error stopping scanner:', err);
+    }
+  };
+
+  // Toggle camera
+  const toggleCamera = async () => {
+    if (isCameraOn) {
+      await stopScanner();
+    } else {
+      await startScanner(cameraId || undefined);
+    }
+  };
+
+  // Switch camera
+  const switchCamera = async () => {
+    if (!cameras.length) return;
+    
+    const currentIndex = cameras.findIndex(cam => cam.deviceId === cameraId);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCameraId = cameras[nextIndex].deviceId;
+    
+    setCameraId(nextCameraId);
+    await startScanner(nextCameraId);
+  };
+
+  // Initialize on mount and when isOpen changes
+  useEffect(() => {
+    if (isOpen) {
+      getCameras().then(cams => {
+        if (cams.length > 0) {
+          setCameraId(cams[0].deviceId);
+          startScanner(cams[0].deviceId);
+        } else {
+          setError('No cameras found on this device.');
+        }
+      });
+    }
+
+    return () => {
+      stopScanner();
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Camera className="w-5 h-5 mr-2 text-blue-600" />
+            Scan Library Barcode
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Scanner Area */}
+        <div className="p-4 flex-1 flex flex-col">
+          {error ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex-1 flex flex-col items-center justify-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mb-3" />
+              <p className="text-red-700 text-center mb-4">{error}</p>
+              <button
+                onClick={() => {
+                  setError(null);
+                  startScanner(cameraId || undefined);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+              >
+                <RotateCw className="w-4 h-4 mr-2" />
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="relative flex-1 bg-black rounded-lg overflow-hidden">
+              <div 
+                id={containerId} 
+                className="w-full h-full"
+                style={{ minHeight: '300px' }}
+              />
+              {isScanning && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                  <div className="bg-white px-4 py-2 rounded-lg shadow-lg flex items-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                    <span>Initializing camera...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600 mb-4">
+              Position the library's barcode within the scanning area
+            </p>
+            
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={toggleCamera}
+                className="p-3 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
+              >
+                {isCameraOn ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+              </button>
+              
+              {cameras.length > 1 && (
+                <button
+                  onClick={switchCamera}
+                  className="p-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+                  title="Switch camera"
+                >
+                  <RotateCw className="w-6 h-6" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Close Scanner
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BarcodeScanner;
