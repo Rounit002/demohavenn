@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, X, AlertCircle, RotateCw, Video, VideoOff } from 'lucide-react';
+import { Camera, X, AlertCircle, RotateCw, Video, VideoOff, RefreshCw } from 'lucide-react';
 
 interface BarcodeScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -15,6 +15,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
   const [cameraId, setCameraId] = useState<string | null>(null);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const containerId = 'qr-reader' + Math.random().toString(36).substring(7);
 
   // Get available cameras
@@ -32,7 +33,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
   };
 
   // Start the scanner
-  const startScanner = async (cameraId?: string) => {
+  const startScanner = async (cameraId?: string, preferFacing?: 'user' | 'environment') => {
     try {
       setError(null);
       setIsScanning(true);
@@ -61,15 +62,21 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
 
       // Start scanning
       await scanner.start(
-        cameraId || { facingMode: 'environment' },
+        // Prefer explicit facingMode when requested (helps on mobile Safari)
+        preferFacing
+          ? { facingMode: preferFacing }
+          : cameraId
+            ? cameraId
+            : { facingMode: facingMode },
         config,
         (decodedText) => {
           console.log('Barcode scanned:', decodedText);
           onScanSuccess(decodedText);
         },
         (error) => {
-          // Ignore expected errors
-          if (!error.message.includes('No QR code found')) {
+          // Ignore expected errors. 'error' may be a string or an object.
+          const msg = typeof error === 'string' ? error : (error && (error as any).message) ? (error as any).message : '';
+          if (msg && !msg.includes('No QR code found')) {
             console.warn('QR Code scan error:', error);
           }
         }
@@ -117,6 +124,15 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
     
     setCameraId(nextCameraId);
     await startScanner(nextCameraId);
+  };
+
+  // Flip facing mode between front and back cameras
+  const flipFacing = async () => {
+    const nextFacing: 'user' | 'environment' = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextFacing);
+    // When using facingMode, clear cameraId so constraints take precedence
+    setCameraId(null);
+    await startScanner(undefined, nextFacing);
   };
 
   // Initialize on mount and when isOpen changes
@@ -203,6 +219,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
               >
                 {isCameraOn ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+              </button>
+              <button
+                onClick={flipFacing}
+                className="p-3 bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
+                title={`Flip to ${facingMode === 'environment' ? 'front' : 'back'} camera`}
+              >
+                <RefreshCw className="w-6 h-6" />
               </button>
               
               {cameras.length > 1 && (
