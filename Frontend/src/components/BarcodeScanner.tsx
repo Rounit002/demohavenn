@@ -16,7 +16,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
-  const containerId = 'qr-reader' + Math.random().toString(36).substring(7);
+  const containerIdRef = useRef<string>('qr-reader-' + Math.random().toString(36).substring(2));
+  const startingRef = useRef<boolean>(false);
 
   // Get available cameras
   const getCameras = async () => {
@@ -35,23 +36,33 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
   // Start the scanner
   const startScanner = async (cameraId?: string, preferFacing?: 'user' | 'environment') => {
     try {
+      if (startingRef.current) return; // prevent concurrent starts
+      startingRef.current = true;
       setError(null);
       setIsScanning(true);
       
       // Clear existing scanner if any
       if (scannerRef.current) {
-        await scannerRef.current.stop();
+        try { await scannerRef.current.stop(); } catch {}
+        try { await scannerRef.current.clear(); } catch {}
         scannerRef.current = null;
       }
 
       // Clear container
-      const container = document.getElementById(containerId);
+      const container = document.getElementById(containerIdRef.current);
       if (container) {
         container.innerHTML = '';
       }
 
+      // Ensure container exists in DOM (in case of immediate re-render during flip)
+      let attempts = 0;
+      while (!document.getElementById(containerIdRef.current) && attempts < 5) {
+        await new Promise(requestAnimationFrame);
+        attempts++;
+      }
+
       // Create new scanner
-      const scanner = new Html5Qrcode(containerId);
+      const scanner = new Html5Qrcode(containerIdRef.current);
       scannerRef.current = scanner;
 
       const config = {
@@ -84,11 +95,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
 
       setIsCameraOn(true);
       setIsScanning(false);
+      startingRef.current = false;
     } catch (err: any) {
       console.error('Scanner error:', err);
       setError(err.message || 'Failed to start camera');
       setIsScanning(false);
       setIsCameraOn(false);
+      startingRef.current = false;
     }
   };
 
@@ -96,7 +109,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
   const stopScanner = async () => {
     try {
       if (scannerRef.current) {
-        await scannerRef.current.stop();
+        try { await scannerRef.current.stop(); } catch {}
+        try { await scannerRef.current.clear(); } catch {}
         scannerRef.current = null;
       }
       setIsCameraOn(false);
@@ -107,6 +121,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
 
   // Toggle camera
   const toggleCamera = async () => {
+    if (startingRef.current) return;
     if (isCameraOn) {
       await stopScanner();
     } else {
@@ -116,7 +131,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
 
   // Switch camera
   const switchCamera = async () => {
-    if (!cameras.length) return;
+    if (!cameras.length || startingRef.current) return;
     
     const currentIndex = cameras.findIndex(cam => cam.deviceId === cameraId);
     const nextIndex = (currentIndex + 1) % cameras.length;
@@ -128,6 +143,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
 
   // Flip facing mode between front and back cameras
   const flipFacing = async () => {
+    if (startingRef.current) return; // avoid overlapping restarts
     const nextFacing: 'user' | 'environment' = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(nextFacing);
     // When using facingMode, clear cameraId so constraints take precedence
@@ -192,7 +208,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
           ) : (
             <div className="relative flex-1 bg-black rounded-lg overflow-hidden">
               <div 
-                id={containerId} 
+                id={containerIdRef.current} 
                 className="w-full h-full"
                 style={{ minHeight: '300px' }}
               />
