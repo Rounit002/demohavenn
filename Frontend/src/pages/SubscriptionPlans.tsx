@@ -146,6 +146,14 @@ const SubscriptionPlans = () => {
     return endDate;
   };
 
+  // Consider a plan current only if still active and not expired
+  const isPlanActive = (planId: string) => {
+    if (!subscriptionInfo || subscriptionInfo.plan !== planId) return false;
+    const end = subscriptionInfo.endDate ? new Date(subscriptionInfo.endDate) : null;
+    const now = new Date();
+    return Boolean(subscriptionInfo.isActive) && !!end && end.getTime() > now.getTime();
+  };
+
   // Subscription plans data
   const plans = [
     {
@@ -161,7 +169,7 @@ const SubscriptionPlans = () => {
         'Generate reports'
       ],
       cta: 'Current Plan',
-      isCurrent: subscriptionInfo?.plan === 'free_trial',
+      isCurrent: isPlanActive('free_trial'),
       disabled: true
     },
     {
@@ -177,7 +185,7 @@ const SubscriptionPlans = () => {
         'No restrictions'
       ],
       cta: 'Start My Focus Journey',
-      isCurrent: subscriptionInfo?.plan === '1_month',
+      isCurrent: isPlanActive('1_month'),
       disabled: false
     },
     {
@@ -193,7 +201,7 @@ const SubscriptionPlans = () => {
         'Priority support'
       ],
       cta: "I'm In – Let's Go",
-      isCurrent: subscriptionInfo?.plan === '3_month',
+      isCurrent: isPlanActive('3_month'),
       disabled: false
     },
     {
@@ -209,7 +217,7 @@ const SubscriptionPlans = () => {
         'Best for growing libraries'
       ],
       cta: 'Fuel My Discipline',
-      isCurrent: subscriptionInfo?.plan === '6_month',
+      isCurrent: isPlanActive('6_month'),
       disabled: false
     },
     {
@@ -225,7 +233,7 @@ const SubscriptionPlans = () => {
         'Focus for the long term'
       ],
       cta: 'Commit to Success',
-      isCurrent: subscriptionInfo?.plan === '12_month',
+      isCurrent: isPlanActive('12_month'),
       disabled: false
     }
   ];
@@ -337,12 +345,22 @@ const SubscriptionPlans = () => {
                 </li>
               </ul>
               
-              <button
-                onClick={() => handlePayment({ id: '9_month', name: '9-Month Plan', amount: 220000 })}
-                className="w-full py-3 px-4 rounded-lg font-semibold bg-gradient-to-r from-blue-500 to-green-500 text-white hover:from-blue-600 hover:to-green-600 transition-colors"
-              >
-                Transform My Library
-              </button>
+              {(() => {
+                const current = isPlanActive('9_month');
+                return (
+                  <button
+                    onClick={() => handlePayment({ id: '9_month', name: '9-Month Plan', amount: 220000 })}
+                    disabled={current}
+                    className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
+                      current
+                        ? 'bg-gray-200 text-gray-700 cursor-default'
+                        : 'bg-gradient-to-r from-blue-500 to-green-500 text-white hover:from-blue-600 hover:to-green-600'
+                    }`}
+                  >
+                    {current ? 'Current Plan' : 'Transform My Library'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

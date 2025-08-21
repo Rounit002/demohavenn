@@ -185,6 +185,7 @@ const {
 } = require("./routes/ownerAuth");
 const { createStudentAuthRouter } = require("./routes/studentAuth");
 const { createOwnerDashboardRouter } = require('./routes/ownerDashboard');
+const { validateSubscription, updateOwnerSubscriptionInfo } = require('./routes/subscriptionValidation');
 
 const ownerAuthRoutes = createOwnerAuthRouter(pool);
 const studentAuthRoutes = createStudentAuthRouter(pool);
@@ -215,35 +216,154 @@ const authRoutes = authModule.authRouter(pool);
 // Mount routes
 app.use('/api/owner-auth', ownerAuthRoutes);
 app.use('/api/student-auth', studentAuthRoutes);
-app.use('/api/owner-dashboard', authenticateOwner, ensureOwnerDataIsolation, ownerDashboardRoutes);
+app.use(
+  '/api/owner-dashboard',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  ownerDashboardRoutes
+);
 
 app.use('/api/public-registration', publicRegistrationRoutes);
 app.use('/api/admission-requests', admissionRequestsRoutes);
 app.use('/api/auth', authRoutes);
 
-app.use('/api/users', authenticateOwner, ensureOwnerDataIsolation, userRoutes);
-app.use('/api/announcements', announcementsRoutes);
+app.use(
+  '/api/users',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  userRoutes
+);
+// Announcements route is mounted with owner/auth/subscription guards below
 app.use('/api/queries', queriesRoutes);
-app.use('/api/students', authenticateOwner, ensureOwnerDataIsolation, studentRoutes);
-app.use('/api/schedules', authenticateOwner, ensureOwnerDataIsolation, scheduleRoutes);
-app.use('/api/seats', authenticateOwner, ensureOwnerDataIsolation, seatsRoutes);
-app.use('/api/branches', authenticateOwner, ensureOwnerDataIsolation, branchesRoutes);
-app.use('/api/lockers', authenticateOwner, ensureOwnerDataIsolation, lockersRoutes);
+app.use(
+  '/api/students',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  studentRoutes
+);
+app.use(
+  '/api/schedules',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  scheduleRoutes
+);
+app.use(
+  '/api/seats',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  seatsRoutes
+);
+app.use(
+  '/api/branches',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  branchesRoutes
+);
+app.use(
+  '/api/lockers',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  lockersRoutes
+);
 
 const { createSubscriptionRouter } = require('./routes/subscriptions');
 const subscriptionRoutes = createSubscriptionRouter(pool);
 app.use('/api/subscriptions', subscriptionRoutes);
 
-app.use('/api/transactions', authenticateOwner, ensureOwnerDataIsolation, transactionsRoutes);
-app.use('/api/collections', authenticateOwner, ensureOwnerDataIsolation, generalCollectionsRoutes);
-app.use('/api/expenses', authenticateOwner, ensureOwnerDataIsolation, expensesRoutes);
-app.use('/api/reports', authenticateOwner, ensureOwnerDataIsolation, reportsRoutes);
-app.use('/api/hostel/branches', authenticateOwner, ensureOwnerDataIsolation, hostelBranchesRoutes);
-app.use('/api/hostel/students', authenticateOwner, ensureOwnerDataIsolation, hostelStudentsRoutes);
-app.use('/api/hostel/collections', authenticateOwner, ensureOwnerDataIsolation, hostelCollectionRoutes);
-app.use('/api/products', authenticateOwner, ensureOwnerDataIsolation, productsRoutes);
-app.use('/api/settings', authenticateOwner, ensureOwnerDataIsolation, settingsRoutes);
-app.use('/api/announcements', authenticateOwner, ensureOwnerDataIsolation, announcementsRoutes);
+app.use(
+  '/api/transactions',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  transactionsRoutes
+);
+app.use(
+  '/api/collections',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  generalCollectionsRoutes
+);
+app.use(
+  '/api/expenses',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  expensesRoutes
+);
+app.use(
+  '/api/reports',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  reportsRoutes
+);
+app.use(
+  '/api/hostel/branches',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  hostelBranchesRoutes
+);
+app.use(
+  '/api/hostel/students',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  hostelStudentsRoutes
+);
+app.use(
+  '/api/hostel/collections',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  hostelCollectionRoutes
+);
+app.use(
+  '/api/products',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  productsRoutes
+);
+app.use(
+  '/api/settings',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  settingsRoutes
+);
+app.use(
+  '/api/announcements',
+  authenticateOwner,
+  ensureOwnerDataIsolation,
+  updateOwnerSubscriptionInfo.bind(null, pool),
+  validateSubscription,
+  announcementsRoutes
+);
 
 app.get('/api/test-email', async (req, res) => {
   try {

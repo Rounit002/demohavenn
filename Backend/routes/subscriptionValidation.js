@@ -3,7 +3,7 @@ const express = require('express');
 
 // Middleware to check if subscription is active
 const validateSubscription = (req, res, next) => {
-  // Skip validation for GET requests (viewing only)
+  // Allow all GET requests (read-only) regardless of subscription status
   if (req.method === 'GET') {
     return next();
   }
@@ -19,7 +19,7 @@ const validateSubscription = (req, res, next) => {
   // Check if subscription is active
   if (!library.is_subscription_active) {
     return res.status(403).json({ 
-      message: '⛔ Your trial has expired. Please subscribe to continue.',
+      message: '⛔ Subscription inactive. Please subscribe to continue.',
       subscriptionExpired: true
     });
   }

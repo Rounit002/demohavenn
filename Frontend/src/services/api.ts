@@ -1,5 +1,6 @@
 // Service for API calls (v2)
 import axios from 'axios';
+import { toast } from 'sonner';
 
 interface NewUserData {
   username: string;
@@ -226,6 +227,9 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
+// Prevent spamming the user with repeated subscription toasts
+let lastSubscriptionToastAt = 0;
+
 // Debug interceptor to log all outgoing requests
 apiClient.interceptors.request.use((config) => {
   console.log('🚀 API Request Details:', {
@@ -318,6 +322,13 @@ apiClient.interceptors.response.use(
       console.warn('401 Unauthorized - Authentication required:', error.response?.data?.message);
       // Don't redirect in mobile app - let components handle auth state
       // Mobile apps should handle 401 errors through proper auth context
+    } else if (error.response?.status === 403 && error.response?.data?.subscriptionExpired) {
+      console.warn('403 Forbidden - Subscription inactive/expired');
+      const now = Date.now();
+      if (now - lastSubscriptionToastAt > 5000) {
+        toast.error('Subscription inactive or trial expired. Viewing is allowed, but actions are disabled. Please renew on the Subscription page.');
+        lastSubscriptionToastAt = now;
+      }
     } else if (!error.response) {
       console.error('Network error - please check your connection:', error.message);
       // Don't show alert in mobile app - let components handle errors gracefully
