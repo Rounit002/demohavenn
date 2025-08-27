@@ -356,14 +356,8 @@ app.use(
   validateSubscription,
   settingsRoutes
 );
-app.use(
-  '/api/announcements',
-  authenticateOwner,
-  ensureOwnerDataIsolation,
-  updateOwnerSubscriptionInfo.bind(null, pool),
-  validateSubscription,
-  announcementsRoutes
-);
+// Announcements route allows any authenticated user (owner, admin, staff, student)
+app.use('/api/announcements', announcementsRoutes);
 
 app.get('/api/test-email', async (req, res) => {
   try {

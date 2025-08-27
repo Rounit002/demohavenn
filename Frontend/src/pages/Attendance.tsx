@@ -533,37 +533,37 @@ const Attendance: React.FC = () => {
                   <table className="w-full">
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           <div className="flex items-center">
                             <User className="w-4 h-4 mr-2" />
                             Student Details
                           </div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                            <div className="flex items-center">
                             <Calendar className="w-4 h-4 mr-2" />
                             Date
                           </div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           <div className="flex items-center">
                             <Clock className="w-4 h-4 mr-2" />
                             Check-in / Out
                           </div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           <div className="flex items-center">
                             <TrendingUp className="w-4 h-4 mr-2" />
                             Duration
                           </div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           <div className="flex items-center">
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Status
                           </div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           <div className="flex items-center">
                             <UserCheck className="w-4 h-4 mr-2" />
                             Membership
@@ -589,7 +589,7 @@ const Attendance: React.FC = () => {
                               : ''
                           }
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 md:px-6 py-3 md:py-4 whitespace-normal sm:whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                                 <span className="text-white font-semibold text-sm">
@@ -610,16 +610,16 @@ const Attendance: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                           <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-600">
                             {formatDate(record.date)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                             <div className="flex flex-col space-y-1">
                                 <span className="text-sm font-medium text-green-700">In: {formatTime(record.firstIn)}</span>
                                 <span className="text-sm font-medium text-red-700">Out: {record.lastOut ? formatTime(record.lastOut) : 'Still Present'}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                             {(() => {
                               const firstIn = record.firstIn;
                               const lastOut = record.lastOut;
@@ -647,7 +647,7 @@ const Attendance: React.FC = () => {
                               );
                             })()}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                               record.status === 'present' 
                                 ? 'bg-green-100 text-green-800 border border-green-200' 
@@ -656,7 +656,7 @@ const Attendance: React.FC = () => {
                               {record.status?.charAt(0).toUpperCase() + record.status?.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                             <div className="flex flex-col space-y-1">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                   record.membershipStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

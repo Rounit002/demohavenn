@@ -474,34 +474,34 @@ const Dashboard: React.FC = () => {
             {canManageStudents && library && (
               <div className="mb-8">
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white mb-6">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
                     <div>
                       <h2 className="text-2xl font-bold">Attendance Management</h2>
                       <p className="text-blue-100">Monitor and manage student attendance</p>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 w-full sm:w-auto">
                         <Calendar className="w-5 h-5 mb-1" />
                         <input
                           type="date"
                           value={selectedDate}
                           onChange={(e) => setSelectedDate(e.target.value)}
-                          className="bg-transparent text-white placeholder-blue-200 border-0 focus:ring-0 p-0 text-sm font-medium"
+                          className="bg-transparent text-white placeholder-blue-200 border-0 focus:ring-0 p-0 text-sm font-medium w-full"
                         />
                       </div>
-                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
+                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center w-full sm:w-auto">
                         <Search className="w-4 h-4 mr-2 text-white" />
                         <input
                           type="text"
                           placeholder="Search students..."
                           value={attendanceSearchTerm}
                           onChange={(e) => setAttendanceSearchTerm(e.target.value)}
-                          className="bg-transparent text-white placeholder-blue-200 border-0 focus:ring-0 p-0 text-sm font-medium w-48"
+                          className="bg-transparent text-white placeholder-blue-200 border-0 focus:ring-0 p-0 text-sm font-medium w-full sm:w-48"
                         />
                       </div>
                       <button
                         onClick={() => setShowBarcodeGenerator(true)}
-                        className="bg-green-500/20 backdrop-blur-sm hover:bg-green-500/30 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2"
+                        className="bg-green-500/20 backdrop-blur-sm hover:bg-green-500/30 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 w-full sm:w-auto"
                       >
                         <QrCode className="w-4 h-4" />
                         <span>Generate QR</span>
